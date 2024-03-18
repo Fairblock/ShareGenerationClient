@@ -1,6 +1,6 @@
-# ApiSetupClient
+# ShareGenerationClient
 
-`ApiSetupClient` is a client for sending setup request to ShareGenerationAPi automatically
+`ShareGenerationClient` create shares and submit to `fairyring` before each round ends
 
 ## Building the client
 
