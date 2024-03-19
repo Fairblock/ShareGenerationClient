@@ -32,7 +32,7 @@ const (
 type CosmosClient struct {
 	authClient          authtypes.QueryClient
 	txClient            tx.ServiceClient
-	grpcConn            grpc.ClientConn
+	grpcConn            *grpc.ClientConn
 	bankQueryClient     banktypes.QueryClient
 	keyshareQueryClient keyshare.QueryClient
 	pepQueryClient      types.QueryClient
@@ -121,6 +121,7 @@ func NewCosmosClient(
 	authClient := authtypes.NewQueryClient(grpcConn)
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	pepeClient := types.NewQueryClient(grpcConn)
+	keyshareClient := keyshare.NewQueryClient(grpcConn)
 
 	keyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
@@ -157,16 +158,17 @@ func NewCosmosClient(
 	}
 
 	return &CosmosClient{
-		bankQueryClient: bankClient,
-		authClient:      authClient,
-		txClient:        tx.NewServiceClient(grpcConn),
-		pepQueryClient:  pepeClient,
-		grpcConn:        *grpcConn,
-		privateKey:      privateKey,
-		account:         baseAccount,
-		accAddress:      accAddr,
-		publicKey:       pubKey,
-		chainID:         chainID,
+		bankQueryClient:     bankClient,
+		authClient:          authClient,
+		txClient:            tx.NewServiceClient(grpcConn),
+		pepQueryClient:      pepeClient,
+		keyshareQueryClient: keyshareClient,
+		grpcConn:            grpcConn,
+		privateKey:          privateKey,
+		account:             baseAccount,
+		accAddress:          accAddr,
+		publicKey:           pubKey,
+		chainID:             chainID,
 	}, nil
 }
 
@@ -307,7 +309,7 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 			WithSequence(c.account.Sequence).
 			WithGasAdjustment(defaultGasAdjustment)
 
-		_, newGasLimit, err = clienttx.CalculateGas(&c.grpcConn, txf, msg)
+		_, newGasLimit, err = clienttx.CalculateGas(c.grpcConn, txf, msg)
 		if err != nil {
 			return nil, err
 		}

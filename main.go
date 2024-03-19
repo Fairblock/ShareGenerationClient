@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ApiSetupClient/cosmosClient"
+	"ShareGenerationClient/cosmosClient"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -9,47 +9,40 @@ import (
 	tmclient "github.com/cometbft/cometbft/rpc/client/http"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/joho/godotenv"
-	"google.golang.org/grpc"
 	"log"
+	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 )
 
-const DefaultChainID = "fairyring-testnet-1"
-const CheckInterval = 15
+const DefaultChainID = "fairyring_devnet"
 
 func main() {
 
-	// get all the variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	gRPCIP := os.Getenv("GRPC_IP_ADDRESS")
-	gRPCPort := os.Getenv("GRPC_PORT")
 	privateKey := os.Getenv("PRIVATE_KEY")
-
 	gRPCEndpoint := fmt.Sprintf(
 		"%s:%s",
-		gRPCIP,
-		gRPCPort,
+		os.Getenv("GRPC_IP_ADDRESS"),
+		os.Getenv("GRPC_PORT"),
 	)
-	grpcConn, err := grpc.Dial(
-		gRPCEndpoint,
-		grpc.WithInsecure(),
-	)
+	checkIntervalStr := os.Getenv("CHECK_INTERVAL")
+
+	checkInterval, err := strconv.ParseUint(checkIntervalStr, 10, 64)
 	if err != nil {
-		log.Fatalf("Error while dialing to GRPC Endpoing: %s", gRPCEndpoint)
+		log.Fatalf("Invalid CHECK_INTERVAL in .env: %s", err.Error())
 	}
 
 	cClient, err := cosmosClient.NewCosmosClient(gRPCEndpoint, privateKey, DefaultChainID)
 	if err != nil {
 		log.Fatalf("Couldn't create cosmos client: %s", err.Error())
 	}
-
-	keyshareQueryClient := types.NewQueryClient(grpcConn)
 
 	masterClient := ShareGeneratorClient{
 		CosmosClient: cClient,
@@ -63,8 +56,8 @@ func main() {
 		),
 		"/websocket",
 	)
-	err = client.Start()
-	if err != nil {
+
+	if err = client.Start(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -74,9 +67,10 @@ func main() {
 	}
 
 	defer client.Stop()
-	var blockPassed uint64 = 0
+	var blockPassed uint64 = math.MaxUint64
 
-	log.Printf("Client Started, checking pub key status every %d block...\n", CheckInterval)
+	log.Printf("Client Started, checking pub key status every %d block...\n", checkInterval)
+
 	for {
 		select {
 		case result := <-out:
@@ -84,16 +78,20 @@ func main() {
 
 			height := newBlockHeader.Header.Height
 
-			blockPassed++
-			if blockPassed < CheckInterval {
-				continue
+			if blockPassed != math.MaxUint64 {
+				blockPassed++
+				if blockPassed < checkInterval {
+					continue
+				}
+				blockPassed = 0
+			} else {
+				blockPassed = 0
 			}
-			blockPassed = 0
 
 			fmt.Println("")
 			log.Printf("Latest Block Height: %d | Checking Pub Key status...\n", height)
 
-			res, err := keyshareQueryClient.PubKey(context.Background(), &types.QueryPubKeyRequest{})
+			res, err := masterClient.CosmosClient.GetActivePubKey()
 			if err != nil && !strings.Contains(err.Error(), "Active Public Key does not exists") {
 				log.Fatal("Error while querying pub key:", err)
 			}
@@ -102,7 +100,7 @@ func main() {
 				log.Println("Queued Pub Key Not found, sending setup request...")
 				generatedResult := masterClient.Generate()
 				if generatedResult == nil {
-
+					log.Fatal("Generate result is empty")
 				}
 
 				n := len(generatedResult.EncryptedKeyShares)
@@ -128,7 +126,7 @@ func main() {
 
 				err = txMsg.ValidateBasic()
 				if err != nil {
-					log.Fatalf("Already failed in the validate basic: %s", err.Error())
+					log.Fatalf("Failed to submit latest pubkey, validate basic failed: %s", err.Error())
 				}
 
 				txResp, err := masterClient.CosmosClient.BroadcastTx(

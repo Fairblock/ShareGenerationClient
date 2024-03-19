@@ -1,4 +1,4 @@
-module ApiSetupClient
+module ShareGenerationClient
 
 go 1.21
 

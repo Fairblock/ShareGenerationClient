@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ApiSetupClient/cosmosClient"
+	"ShareGenerationClient/cosmosClient"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -66,7 +66,7 @@ func (sgc *ShareGeneratorClient) Generate() *GenerateResult {
 		commitmentPoints := suite.G1().Point().Mul(s.Value, suite.G1().Point().Base())
 		commitmentPointsBinary, _ := commitmentPoints.MarshalBinary()
 
-		keyShareCommitments[indexInt] = hex.EncodeToString(commitmentPointsBinary)
+		keyShareCommitments[indexInt-1] = hex.EncodeToString(commitmentPointsBinary)
 
 		sb, _ := s.Value.MarshalBinary()
 
@@ -83,7 +83,7 @@ func (sgc *ShareGeneratorClient) Generate() *GenerateResult {
 			validatorsPubInfos[i].Address,
 		}
 
-		sharesList[indexInt] = &share
+		sharesList[indexInt-1] = &share
 	}
 
 	result.EncryptedKeyShares = sharesList
