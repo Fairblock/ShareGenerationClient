@@ -1,17 +1,10 @@
 # ShareGenerationClient
 
-`ShareGenerationClient` create shares and submit to `fairyring` before each round ends
+`ShareGenerationClient` create shares and public key, then submit to `fairyring` before each round ends
 
-## Building the client
-
-This command will build the project to an executable in this directory
+## Installing the client
 
 ```bash
-go build
-```
-
-If you would like to have the executable in `GOPATH`
-
-```bash
+go mod tidy
 go install
 ```
