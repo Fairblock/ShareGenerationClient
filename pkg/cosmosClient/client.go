@@ -2,6 +2,7 @@ package cosmosClient
 
 import (
 	"context"
+	stakingv1beta1 "cosmossdk.io/api/cosmos/staking/v1beta1"
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"github.com/Fairblock/fairyring/api/fairyring/keyshare"
@@ -33,6 +34,7 @@ type CosmosClient struct {
 	authClient          authtypes.QueryClient
 	txClient            tx.ServiceClient
 	grpcConn            *grpc.ClientConn
+	stakingQueryClient  stakingv1beta1.QueryClient
 	bankQueryClient     banktypes.QueryClient
 	keyshareQueryClient keyshare.QueryClient
 	pepQueryClient      types.QueryClient
@@ -44,12 +46,24 @@ type CosmosClient struct {
 }
 
 type ValidatorPubInfo struct {
-	PublicKey *dcrdSecp256k1.PublicKey
-	Address   string
+	PublicKey   *dcrdSecp256k1.PublicKey
+	Description *stakingv1beta1.Description
+	Address     string
+}
+
+func (c *CosmosClient) GetValidatorDescription(val string) (*stakingv1beta1.Description, error) {
+	resp, err := c.stakingQueryClient.Validator(
+		context.Background(),
+		&stakingv1beta1.QueryValidatorRequest{ValidatorAddr: val},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Validator.Description, nil
 }
 
 func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
-	resp, err := c.keyshareQueryClient.ValidatorSetAll(
+	validatorsResp, err := c.keyshareQueryClient.ValidatorSetAll(
 		context.Background(),
 		&keyshare.QueryAllValidatorSetRequest{},
 	)
@@ -58,13 +72,13 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		return nil, err
 	}
 
-	if len(resp.ValidatorSet) == 0 {
+	if len(validatorsResp.ValidatorSet) == 0 {
 		return nil, errors.New("validator set in key share module is empty")
 	}
 
-	validatorPubKeys := make([]ValidatorPubInfo, len(resp.ValidatorSet))
+	validatorPubKeys := make([]ValidatorPubInfo, len(validatorsResp.ValidatorSet))
 
-	for i, addr := range resp.ValidatorSet {
+	for i, addr := range validatorsResp.ValidatorSet {
 		resp, err := c.authClient.Account(
 			context.Background(),
 			&authtypes.QueryAccountRequest{Address: addr.Validator},
@@ -74,6 +88,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		}
 
 		var baseAccount authtypes.BaseAccount
+
 		if err = baseAccount.Unmarshal(resp.Account.Value); err != nil {
 			return nil, errors.Wrap(err, "error when unmarshalling base account")
 		}
@@ -86,23 +101,19 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "error parsing pub key to dcrd pub key")
 		}
+
+		validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting validator description")
+		}
+
 		validatorPubKeys[i] = ValidatorPubInfo{
-			PublicKey: pubKey,
-			Address:   baseAccount.Address,
+			PublicKey:   pubKey,
+			Address:     baseAccount.Address,
+			Description: validatorDescription,
 		}
 	}
 	return validatorPubKeys, nil
-}
-
-func PrivateKeyToAccAddress(privateKeyHex string) (cosmostypes.AccAddress, error) {
-	keyBytes, err := hex.DecodeString(privateKeyHex)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKey := secp256k1.PrivKey{Key: keyBytes}
-
-	return cosmostypes.AccAddress(privateKey.PubKey().Address()), nil
 }
 
 func NewCosmosClient(
@@ -122,6 +133,7 @@ func NewCosmosClient(
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	pepeClient := types.NewQueryClient(grpcConn)
 	keyshareClient := keyshare.NewQueryClient(grpcConn)
+	stakingQueryClient := stakingv1beta1.NewQueryClient(grpcConn)
 
 	keyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
@@ -163,6 +175,7 @@ func NewCosmosClient(
 		txClient:            tx.NewServiceClient(grpcConn),
 		pepQueryClient:      pepeClient,
 		keyshareQueryClient: keyshareClient,
+		stakingQueryClient:  stakingQueryClient,
 		grpcConn:            grpcConn,
 		privateKey:          privateKey,
 		account:             baseAccount,

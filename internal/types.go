@@ -30,12 +30,7 @@ type GenerateResult struct {
 	MasterPublicKey    string
 }
 
-func (sgc *ShareGeneratorClient) Generate() *GenerateResult {
-	validatorsPubInfos, err := sgc.CosmosClient.GetAllValidatorsPubInfos()
-	if err != nil {
-		fmt.Printf("error getting all validators public infos %s\n", err.Error())
-		return nil
-	}
+func (sgc *ShareGeneratorClient) Generate(validatorsPubInfos []cosmosClient.ValidatorPubInfo) *GenerateResult {
 
 	n := len(validatorsPubInfos)
 	t := int(math.Ceil(float64(n) * (2.0 / 3.0)))

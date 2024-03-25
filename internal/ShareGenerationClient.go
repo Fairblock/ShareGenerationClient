@@ -9,7 +9,6 @@ import (
 	"github.com/Fairblock/fairyring/x/keyshare/types"
 	tmclient "github.com/cometbft/cometbft/rpc/client/http"
 	tmtypes "github.com/cometbft/cometbft/types"
-	"github.com/joho/godotenv"
 	"log"
 	"math"
 	"math/big"
@@ -17,11 +16,6 @@ import (
 )
 
 func ShareGenerationClient(cfg *config.Config) {
-
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
 
 	privateKey := cfg.PrivateKey
 	gRPCEndpoint := cfg.GetGRPCEndpoint()
@@ -82,7 +76,11 @@ func ShareGenerationClient(cfg *config.Config) {
 
 			if res == nil || (len(res.QueuedPubKey.PublicKey) == 0 && len(res.QueuedPubKey.Creator) == 0) {
 				log.Println("Queued Pub Key Not found, sending setup request...")
-				generatedResult := masterClient.Generate()
+				validatorsPubInfos, err := masterClient.CosmosClient.GetAllValidatorsPubInfos()
+				if err != nil {
+					log.Fatalf("error getting all validators public infos: %s\n", err.Error())
+				}
+				generatedResult := masterClient.Generate(validatorsPubInfos)
 				if generatedResult == nil {
 					log.Fatal("Generate result is empty")
 				}
