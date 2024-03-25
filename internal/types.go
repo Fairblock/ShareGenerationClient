@@ -1,7 +1,7 @@
-package main
+package internal
 
 import (
-	"ShareGenerationClient/cosmosClient"
+	"ShareGenerationClient/pkg/cosmosClient"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
