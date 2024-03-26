@@ -235,6 +235,8 @@ github.com/FairBlock/DistributedIBE v0.0.0-20230528025616-f58fb2b93eaf h1:b4eYrF
 github.com/FairBlock/DistributedIBE v0.0.0-20230528025616-f58fb2b93eaf/go.mod h1:qXpLBzZiSdWoweJkE/lAIPedf6GOl7WsYM8rxrZCCDk=
 github.com/Fairblock/cosmos-sdk v0.47.3-fairyring h1:7F4vq02Nw+mDlEbSs6oo2EaNez7g++j9tnFY9MpvlGE=
 github.com/Fairblock/cosmos-sdk v0.47.3-fairyring/go.mod h1:F7oJzvXxXhgxtmrjyILEeYjxA3/Gygr2htZRrY/mhTE=
+github.com/Fairblock/fairyring v0.5.0 h1:oS1pBKcQyKrLcoXhOwAA/BOS3EQQwRs0WnLvXcc/VXs=
+github.com/Fairblock/fairyring v0.5.0/go.mod h1:9QokeMOeSCa4i9nu84ntWiTHncAOjHRQ9CaroByRmAI=
 github.com/Fairblock/wasmd v0.45.0-fairy h1:A8KME+M1mPbnQ06b52InydSP0YDy1z2MRvF9X3fOwho=
 github.com/Fairblock/wasmd v0.45.0-fairy/go.mod h1:ZbWiki0Yy3csOxNJZEiNwDT8UcNbZjsnAzEnj+pz28w=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
@@ -824,8 +826,6 @@ github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGw
 github.com/jmespath/go-jmespath/internal/testify v1.5.1/go.mod h1:L3OGu8Wl2/fWfCI6z80xFu9LTZmf1ZRjMHUOPmWr69U=
 github.com/jmhodges/levigo v1.0.0 h1:q5EC36kV79HWeTBWsod3mG11EgStG3qArTKcvlksN1U=
 github.com/jmhodges/levigo v1.0.0/go.mod h1:Q6Qx+uH3RAqyK4rFQroq9RL7mdkABMcfhEI+nNuzMJQ=
-github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
-github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
 github.com/jrick/logrotate v1.0.0/go.mod h1:LNinyqDIJnpAur+b8yyulnQw/wDuN1+BYKlTRt3OuAQ=

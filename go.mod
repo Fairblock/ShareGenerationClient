@@ -3,15 +3,18 @@ module ShareGenerationClient
 go 1.21
 
 require (
+	cosmossdk.io/api v0.3.1
 	cosmossdk.io/math v1.1.2
 	github.com/FairBlock/DistributedIBE v0.0.0-20230528025616-f58fb2b93eaf
-	github.com/Fairblock/fairyring v0.4.0
+	github.com/Fairblock/fairyring v0.5.0
 	github.com/cometbft/cometbft v0.37.2
 	github.com/cosmos/cosmos-sdk v0.47.5
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.4
+	github.com/drand/kyber v1.2.0
 	github.com/drand/kyber-bls12381 v0.3.1
-	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
+	github.com/spf13/cobra v1.7.0
+	github.com/spf13/viper v1.16.0
 	google.golang.org/grpc v1.59.0
 )
 
@@ -21,7 +24,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.1 // indirect
 	cloud.google.com/go/storage v1.30.1 // indirect
-	cosmossdk.io/api v0.3.1 // indirect
 	cosmossdk.io/core v0.5.1 // indirect
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
 	cosmossdk.io/errors v1.0.0 // indirect
@@ -71,7 +73,6 @@ require (
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/drand/kyber v1.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
@@ -152,10 +153,8 @@ require (
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.16.0 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
@@ -192,7 +191,5 @@ require (
 replace github.com/cosmos/cosmos-sdk => github.com/Fairblock/cosmos-sdk v0.47.3-fairyring
 
 replace github.com/CosmWasm/wasmd => github.com/Fairblock/wasmd v0.45.0-fairy
-
-replace github.com/Fairblock/fairyring => ../fairyring
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
