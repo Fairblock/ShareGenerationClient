@@ -58,12 +58,18 @@ var overrideCmd = &cobra.Command{
 		}
 
 		var validatorsIndexesStr string
-		fmt.Print("Enter the index of the validators to be removed, separate with comma: ")
+		fmt.Print("Enter the index of the validators to be removed, separate with comma (Enter -1 to keep all validators): ")
 		_, err = fmt.Scan(&validatorsIndexesStr)
 
-		splitIndexes := strings.Split(validatorsIndexesStr, ",")
-		if len(splitIndexes) <= 0 || len(splitIndexes) >= len(validatorsInfo) {
-			log.Fatalln("Invalid number of given validators")
+		var splitIndexes []string
+
+		if validatorsIndexesStr == "-1" {
+			splitIndexes = make([]string, 0)
+		} else {
+			splitIndexes = strings.Split(validatorsIndexesStr, ",")
+			if len(splitIndexes) <= 0 || len(splitIndexes) >= len(validatorsInfo) {
+				log.Fatalln("Invalid number of given validators")
+			}
 		}
 
 		indexesToRemove := make([]int, 0)
