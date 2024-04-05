@@ -106,9 +106,12 @@ func ShareGenerationClient(cfg *config.Config) {
 					EncryptedKeyShares: encShares,
 				}
 
-				err = txMsg.ValidateBasic()
-				if err != nil {
+				if err = txMsg.ValidateBasic(); err != nil {
 					log.Fatalf("Failed to submit latest pubkey, validate basic failed: %s", err.Error())
+				}
+
+				if err = masterClient.CosmosClient.UpdateClientAccountInfo(); err != nil {
+					log.Printf("Unable to update client account info: %s", err.Error())
 				}
 
 				txResp, err := masterClient.CosmosClient.BroadcastTx(

@@ -54,7 +54,11 @@ var overrideCmd = &cobra.Command{
 			if err != nil {
 				log.Fatalf("Couldn't get validator info from staking module: %s", err.Error())
 			}
-			fmt.Printf("[%d] '%s': %s\n", i, v.Description.Moniker, v.Address)
+			if v.Description == nil {
+				fmt.Printf("[%d] 'Authorized By %s': %s\n", i, v.AuthorizedBy, v.Address)
+			} else {
+				fmt.Printf("[%d] '%s': %s\n", i, v.Description.Moniker, v.Address)
+			}
 		}
 
 		var validatorsIndexesStr string

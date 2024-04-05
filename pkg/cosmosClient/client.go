@@ -46,9 +46,10 @@ type CosmosClient struct {
 }
 
 type ValidatorPubInfo struct {
-	PublicKey   *dcrdSecp256k1.PublicKey
-	Description *stakingv1beta1.Description
-	Address     string
+	PublicKey    *dcrdSecp256k1.PublicKey
+	Description  *stakingv1beta1.Description
+	AuthorizedBy string
+	Address      string
 }
 
 func (c *CosmosClient) GetValidatorDescription(val string) (*stakingv1beta1.Description, error) {
@@ -62,6 +63,26 @@ func (c *CosmosClient) GetValidatorDescription(val string) (*stakingv1beta1.Desc
 	return resp.Validator.Description, nil
 }
 
+func (c *CosmosClient) GetAuthorizedAddrMap() (map[string]string, error) {
+	authorizedAddrMap := make(map[string]string)
+	allAuthorizedAddr, err := c.keyshareQueryClient.AuthorizedAddressAll(
+		context.Background(),
+		&keyshare.QueryAllAuthorizedAddressRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range allAuthorizedAddr.GetAuthorizedAddress() {
+		if !v.IsAuthorized {
+			continue
+		}
+		authorizedAddrMap[v.AuthorizedBy] = v.Target
+	}
+
+	return authorizedAddrMap, nil
+}
+
 func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 	validatorsResp, err := c.keyshareQueryClient.ValidatorSetAll(
 		context.Background(),
@@ -69,7 +90,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error when getting validator set in keyshare module")
 	}
 
 	if len(validatorsResp.ValidatorSet) == 0 {
@@ -78,13 +99,25 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 
 	validatorPubKeys := make([]ValidatorPubInfo, len(validatorsResp.ValidatorSet))
 
+	authAddrMap, err := c.GetAuthorizedAddrMap()
+	if err != nil {
+		return nil, errors.Wrap(err, "error when getting all authorized addresses")
+	}
+
 	for i, addr := range validatorsResp.ValidatorSet {
+		targetAddr := addr.Validator
+
+		authorizedTo, found := authAddrMap[targetAddr]
+		if found {
+			targetAddr = authorizedTo
+		}
+
 		resp, err := c.authClient.Account(
 			context.Background(),
-			&authtypes.QueryAccountRequest{Address: addr.Validator},
+			&authtypes.QueryAccountRequest{Address: targetAddr},
 		)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error when querying account info")
 		}
 
 		var baseAccount authtypes.BaseAccount
@@ -102,15 +135,23 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 			return nil, errors.Wrap(err, "error parsing pub key to dcrd pub key")
 		}
 
-		validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
-		if err != nil {
-			return nil, errors.Wrap(err, "error getting validator description")
-		}
-
-		validatorPubKeys[i] = ValidatorPubInfo{
-			PublicKey:   pubKey,
-			Address:     baseAccount.Address,
-			Description: validatorDescription,
+		if !found {
+			validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
+			if err != nil {
+				return nil, errors.Wrap(err, "error getting validator description")
+			}
+			validatorPubKeys[i] = ValidatorPubInfo{
+				PublicKey:   pubKey,
+				Address:     baseAccount.Address,
+				Description: validatorDescription,
+			}
+		} else {
+			validatorPubKeys[i] = ValidatorPubInfo{
+				PublicKey:    pubKey,
+				Address:      baseAccount.Address,
+				Description:  nil,
+				AuthorizedBy: addr.Validator,
+			}
 		}
 	}
 	return validatorPubKeys, nil
@@ -183,6 +224,28 @@ func NewCosmosClient(
 		publicKey:           pubKey,
 		chainID:             chainID,
 	}, nil
+}
+
+func (c *CosmosClient) UpdateClientAccountInfo() error {
+	var baseAccount authtypes.BaseAccount
+
+	resp, err := c.authClient.Account(
+		context.Background(),
+		&authtypes.QueryAccountRequest{Address: c.GetAddress()},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	err = baseAccount.Unmarshal(resp.Account.Value)
+	if err != nil {
+		return err
+	}
+
+	c.account = baseAccount
+
+	return nil
 }
 
 func (c *CosmosClient) GetActivePubKey() (*types.QueryPubKeyResponse, error) {
