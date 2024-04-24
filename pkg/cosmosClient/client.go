@@ -104,7 +104,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		return nil, errors.Wrap(err, "error when getting all authorized addresses")
 	}
 
-	for i, addr := range validatorsResp.ValidatorSet {
+	for _, addr := range validatorsResp.ValidatorSet {
 		targetAddr := addr.Validator
 
 		authorizedTo, found := authAddrMap[targetAddr]
