@@ -126,6 +126,11 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 			return nil, errors.Wrap(err, "error when unmarshalling base account")
 		}
 
+		if baseAccount.PubKey == nil {
+			log.Printf("Skip Validator: %s due to pubkey not found\n")
+			continue
+		}
+
 		var secp256k1PubKey secp256k1.PubKey
 		if err = secp256k1PubKey.Unmarshal(baseAccount.PubKey.Value); err != nil {
 			return nil, errors.Wrap(err, "error when unmarshalling pub key")
