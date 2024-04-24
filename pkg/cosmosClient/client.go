@@ -97,7 +97,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		return nil, errors.New("validator set in key share module is empty")
 	}
 
-	validatorPubKeys := make([]ValidatorPubInfo, len(validatorsResp.ValidatorSet))
+	validatorPubKeys := make([]ValidatorPubInfo, 0)
 
 	authAddrMap, err := c.GetAuthorizedAddrMap()
 	if err != nil {
@@ -145,18 +145,18 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "error getting validator description")
 			}
-			validatorPubKeys[i] = ValidatorPubInfo{
+			validatorPubKeys = append(validatorPubKeys, ValidatorPubInfo{
 				PublicKey:   pubKey,
 				Address:     baseAccount.Address,
 				Description: validatorDescription,
-			}
+			})
 		} else {
-			validatorPubKeys[i] = ValidatorPubInfo{
+			validatorPubKeys = append(validatorPubKeys, ValidatorPubInfo{
 				PublicKey:    pubKey,
 				Address:      baseAccount.Address,
 				Description:  nil,
 				AuthorizedBy: addr.Validator,
-			}
+			})
 		}
 	}
 	return validatorPubKeys, nil
