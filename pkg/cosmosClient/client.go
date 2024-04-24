@@ -127,7 +127,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 		}
 
 		if baseAccount.PubKey == nil {
-			log.Printf("Skip Validator: %s due to pubkey not found\n")
+			log.Printf("Skip Validator: %s due to pubkey not found\n", targetAddr)
 			continue
 		}
 
