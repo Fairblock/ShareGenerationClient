@@ -26,6 +26,7 @@ var configUpdateCmd = &cobra.Command{
 		chainPort, _ := cmd.Flags().GetUint64("port")
 		checkInterval, _ := cmd.Flags().GetUint64("check-interval")
 		privateKey, _ := cmd.Flags().GetString("private-key")
+		metricsPort, _ := cmd.Flags().GetUint64("metrics-port")
 
 		cfg.FairyRingNode = config.Node{
 			Protocol: chainProtocol,
@@ -38,6 +39,7 @@ var configUpdateCmd = &cobra.Command{
 
 		cfg.CheckInterval = checkInterval
 		cfg.PrivateKey = privateKey
+		cfg.MetricsPort = metricsPort
 
 		if err = cfg.SaveConfig(); err != nil {
 			fmt.Printf("Error saving updated config to system: %s\n", err.Error())
@@ -63,4 +65,5 @@ func init() {
 	configUpdateCmd.Flags().String("protocol", cfg.FairyRingNode.Protocol, "Update config node protocol")
 	configUpdateCmd.Flags().Uint64("check-interval", cfg.CheckInterval, "How often the client check for pub key status in blocks")
 	configUpdateCmd.Flags().String("private-key", cfg.PrivateKey, "Private key for the trusted address")
+	configUpdateCmd.Flags().Uint64("metrics-port", cfg.MetricsPort, "Update config metrics port")
 }

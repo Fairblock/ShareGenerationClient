@@ -143,6 +143,7 @@ func updateConfig(c Config) {
 
 	viper.Set("PrivateKey", c.PrivateKey)
 	viper.Set("CheckInterval", c.CheckInterval)
+	viper.Set("MetricsPort", c.MetricsPort)
 }
 
 func setInitialConfig(c Config) {
@@ -155,4 +156,5 @@ func setInitialConfig(c Config) {
 
 	viper.SetDefault("PrivateKey", c.PrivateKey)
 	viper.SetDefault("CheckInterval", c.CheckInterval)
+	viper.SetDefault("MetricsPort", c.MetricsPort)
 }
