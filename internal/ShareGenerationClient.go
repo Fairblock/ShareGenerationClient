@@ -7,12 +7,29 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/Fairblock/fairyring/x/keyshare/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	tmclient "github.com/cometbft/cometbft/rpc/client/http"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"log"
 	"math"
 	"math/big"
+	"net/http"
 	"strings"
+)
+
+
+var (
+	invalidShareGenerated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "sharegenerationclient_invalid_share_generated",
+		Help: "The total number of invalid key share generated",
+	})
+
+	validShareGenerated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "sharegenerationclient_valid_share_generated",
+		Help: "The total number of valid key share generated",
+	})
 )
 
 func ShareGenerationClient(cfg *config.Config) {
@@ -49,6 +66,10 @@ func ShareGenerationClient(cfg *config.Config) {
 
 	log.Printf("Client Started, checking pub key status every %d block...\n", checkInterval)
 
+	http.Handle("/metrics", promhttp.Handler())
+	log.Printf("MetricsPort: %d\n", cfg.MetricsPort)
+	go http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
+	
 	for {
 		select {
 		case result := <-out:
@@ -121,8 +142,10 @@ func ShareGenerationClient(cfg *config.Config) {
 
 				if err != nil {
 					log.Printf("Error broadcasting tx: %s", err.Error())
+					invalidShareGenerated.Inc()
 				} else {
 					log.Printf("Tx Broadcasted: %s", txResp.TxHash)
+					validShareGenerated.Inc()
 				}
 			} else {
 				log.Println("Pub Keys Found !")

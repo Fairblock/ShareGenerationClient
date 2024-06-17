@@ -29,6 +29,7 @@ type Config struct {
 	FairyRingNode Node
 	CheckInterval uint64
 	PrivateKey    string
+	MetricsPort   uint64
 }
 
 func ReadConfigFromFile() (*Config, error) {
@@ -127,6 +128,8 @@ func DefaultConfig() Config {
 			ChainID:  DefaultChainID,
 		},
 		CheckInterval: DefaultCheckInterval,
+		MetricsPort:   2223,
+
 	}
 }
 
