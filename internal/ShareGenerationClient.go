@@ -17,12 +17,13 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"time"
 )
 
 
 var (
-	invalidShareGenerated = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sharegenerationclient_invalid_share_generated",
+	failedShareGenerated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "sharegenerationclient_failed_share_generated",
 		Help: "The total number of invalid key share generated",
 	})
 
@@ -139,14 +140,26 @@ func ShareGenerationClient(cfg *config.Config) {
 					&txMsg,
 					true,
 				)
-
 				if err != nil {
 					log.Printf("Error broadcasting tx: %s", err.Error())
-					invalidShareGenerated.Inc()
-				} else {
+					failedShareGenerated.Inc()
+					break
+				}else {
 					log.Printf("Tx Broadcasted: %s", txResp.TxHash)
-					validShareGenerated.Inc()
 				}
+
+				finalTxResp, err := masterClient.CosmosClient.WaitForTx(txResp.TxHash, time.Second)
+				if err != nil {
+					log.Printf("Create latest pubkey tx failed: %s\n", err.Error())
+					break
+				}
+
+				if finalTxResp.TxResponse.Code != 0 {
+					log.Printf("Create latest pubkey tx failed: %s\n", finalTxResp.TxResponse.RawLog)
+					failedShareGenerated.Inc()
+					break
+				}
+				validShareGenerated.Inc()
 			} else {
 				log.Println("Pub Keys Found !")
 				log.Printf("Active Pub Key: %s | Expries at: %d\n", res.ActivePubKey.PublicKey, res.ActivePubKey.Expiry)
