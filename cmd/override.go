@@ -39,6 +39,27 @@ var overrideCmd = &cobra.Command{
 			CosmosClient: cClient,
 		}
 
+		pubKeyValidatorsInfo, err := cClient.GetCurrentPubKeyValidatorsInfo()
+		if err != nil {
+			log.Fatalf("Couldn't get validators info from current public key: %s", err.Error())
+		}
+
+		if len(pubKeyValidatorsInfo) <= 0 {
+			log.Fatalln("No validators found in key share module.")
+		}
+
+		fmt.Printf("Found total %d validators in current public key\n", len(pubKeyValidatorsInfo))
+
+		for i, v := range pubKeyValidatorsInfo {
+			if len(v.Authorizing) == 0 {
+				fmt.Printf("[%d] '%s': %s\n", i, v.Description.Moniker, v.Address)
+			} else {
+				fmt.Printf("[%d] '%s': %s Authorizing: %s \n", i, v.Description.Moniker, v.Address, v.Authorizing)
+			}
+		}
+
+		fmt.Println("================")
+
 		validatorsInfo, err := cClient.GetAllValidatorsPubInfos()
 		if err != nil {
 			log.Fatalf("Couldn't get validators info: %s", err.Error())
@@ -51,15 +72,14 @@ var overrideCmd = &cobra.Command{
 		fmt.Printf("Found total %d validators in key share module\n", len(validatorsInfo))
 
 		for i, v := range validatorsInfo {
-			if err != nil {
-				log.Fatalf("Couldn't get validator info from staking module: %s", err.Error())
-			}
 			if v.Description == nil {
 				fmt.Printf("[%d] 'Authorized By %s': %s\n", i, v.AuthorizedBy, v.Address)
 			} else {
 				fmt.Printf("[%d] '%s': %s\n", i, v.Description.Moniker, v.Address)
 			}
 		}
+
+		fmt.Println("================")
 
 		var validatorsIndexesStr string
 		fmt.Print("Enter the index of the validators to be removed, separate with comma (Enter -1 to keep all validators): ")

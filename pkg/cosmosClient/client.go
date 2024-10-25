@@ -6,7 +6,6 @@ import (
 	"cosmossdk.io/math"
 	"encoding/hex"
 	"github.com/Fairblock/fairyring/api/fairyring/keyshare"
-	"github.com/Fairblock/fairyring/app"
 	"github.com/Fairblock/fairyring/x/pep/types"
 	clienttx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -19,6 +18,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	dcrdSecp256k1 "github.com/decred/dcrd/dcrec/secp256k1"
 	"github.com/pkg/errors"
+	"github.com/skip-mev/block-sdk/v2/testutils"
 	"google.golang.org/grpc"
 	"log"
 	"strings"
@@ -49,6 +49,7 @@ type ValidatorPubInfo struct {
 	PublicKey    *dcrdSecp256k1.PublicKey
 	Description  *stakingv1beta1.Description
 	AuthorizedBy string
+	Authorizing  string
 	Address      string
 }
 
@@ -63,7 +64,7 @@ func (c *CosmosClient) GetValidatorDescription(val string) (*stakingv1beta1.Desc
 	return resp.Validator.Description, nil
 }
 
-func (c *CosmosClient) GetAuthorizedAddrMap() (map[string]string, error) {
+func (c *CosmosClient) GetAuthorizedAddrMap(keyIsValidator bool) (map[string]string, error) {
 	authorizedAddrMap := make(map[string]string)
 	allAuthorizedAddr, err := c.keyshareQueryClient.AuthorizedAddressAll(
 		context.Background(),
@@ -77,10 +78,96 @@ func (c *CosmosClient) GetAuthorizedAddrMap() (map[string]string, error) {
 		if !v.IsAuthorized {
 			continue
 		}
-		authorizedAddrMap[v.AuthorizedBy] = v.Target
+		if keyIsValidator {
+			authorizedAddrMap[v.AuthorizedBy] = v.Target
+		} else {
+			authorizedAddrMap[v.Target] = v.AuthorizedBy
+		}
 	}
 
 	return authorizedAddrMap, nil
+}
+
+func (c *CosmosClient) GetCurrentPubKeyValidatorsInfo() ([]ValidatorPubInfo, error) {
+	pubKeyResp, err := c.keyshareQueryClient.PubKey(context.Background(), &keyshare.QueryPubKeyRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	if pubKeyResp.ActivePubKey == nil {
+		return []ValidatorPubInfo{}, nil
+	}
+
+	if len(pubKeyResp.ActivePubKey.EncryptedKeyShares) == 0 {
+		return []ValidatorPubInfo{}, nil
+	}
+
+	authAddrMap, err := c.GetAuthorizedAddrMap(false)
+	if err != nil {
+		return nil, errors.Wrap(err, "error when getting all authorized addresses")
+	}
+
+	validatorPubKeys := make([]ValidatorPubInfo, 0)
+
+	for _, eks := range pubKeyResp.ActivePubKey.EncryptedKeyShares {
+		// .Validator here is validator / the authorized address
+		// If found, then it is an authorized address
+		// Not found, then it is validator
+		authorizedBy, found := authAddrMap[eks.Validator]
+
+		var targetAddr string
+		if found {
+			targetAddr = authorizedBy
+		} else {
+			targetAddr = eks.Validator
+		}
+
+		resp, err := c.authClient.Account(
+			context.Background(),
+			&authtypes.QueryAccountRequest{Address: targetAddr},
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "error when querying account info")
+		}
+
+		var baseAccount authtypes.BaseAccount
+
+		if err = baseAccount.Unmarshal(resp.Account.Value); err != nil {
+			return nil, errors.Wrap(err, "error when unmarshalling base account")
+		}
+
+		if baseAccount.PubKey == nil {
+			log.Printf("Skip Validator: %s due to pubkey not found\n", targetAddr)
+			continue
+		}
+
+		var secp256k1PubKey secp256k1.PubKey
+		if err = secp256k1PubKey.Unmarshal(baseAccount.PubKey.Value); err != nil {
+			return nil, errors.Wrap(err, "error when unmarshalling pub key")
+		}
+		pubKey, err := dcrdSecp256k1.ParsePubKey(secp256k1PubKey.Key)
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing pub key to dcrd pub key")
+		}
+
+		validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting validator description")
+		}
+		info := ValidatorPubInfo{
+			PublicKey:   pubKey,
+			Address:     baseAccount.Address,
+			Description: validatorDescription,
+		}
+
+		if found {
+			info.Authorizing = eks.Validator
+		}
+
+		validatorPubKeys = append(validatorPubKeys, info)
+	}
+
+	return validatorPubKeys, nil
 }
 
 func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
@@ -99,7 +186,7 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 
 	validatorPubKeys := make([]ValidatorPubInfo, 0)
 
-	authAddrMap, err := c.GetAuthorizedAddrMap()
+	authAddrMap, err := c.GetAuthorizedAddrMap(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "error when getting all authorized addresses")
 	}
@@ -370,9 +457,8 @@ func (c *CosmosClient) WaitForTx(hash string, rate time.Duration) (*tx.GetTxResp
 }
 
 func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, error) {
-	encodingCfg := app.MakeEncodingConfig()
+	encodingCfg := testutils.CreateTestEncodingConfig()
 	txBuilder := encodingCfg.TxConfig.NewTxBuilder()
-	signMode := encodingCfg.TxConfig.SignModeHandler().DefaultMode()
 
 	err := txBuilder.SetMsgs(msg)
 	if err != nil {
@@ -383,7 +469,7 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 	if adjustGas {
 		txf := clienttx.Factory{}.
 			WithGas(defaultGasLimit).
-			WithSignMode(signMode).
+			WithSignMode(1).
 			WithTxConfig(encodingCfg.TxConfig).
 			WithChainID(c.chainID).
 			WithAccountNumber(c.account.AccountNumber).
@@ -407,7 +493,7 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 	}
 
 	sigData := signing.SingleSignatureData{
-		SignMode:  signMode,
+		SignMode:  1,
 		Signature: nil,
 	}
 	sig := signing.SignatureV2{
@@ -421,7 +507,7 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 	}
 
 	sigV2, err := clienttx.SignWithPrivKey(
-		signMode, signerData, txBuilder, &c.privateKey,
+		context.Background(), 1, signerData, txBuilder, &c.privateKey,
 		encodingCfg.TxConfig, c.account.Sequence,
 	)
 
