@@ -122,23 +122,23 @@ var overrideCmd = &cobra.Command{
 
 		n := len(generatedResult.EncryptedKeyShares)
 
-		encShares := make([]*types.EncryptedKeyShare, n)
+		encShares := make([]*types.EncryptedKeyshare, n)
 
 		for _, v := range generatedResult.EncryptedKeyShares {
 			indexByte, _ := hex.DecodeString(v.Index.String())
 			indexInt := big.NewInt(0).SetBytes(indexByte).Uint64()
-			encShares[indexInt-1] = &types.EncryptedKeyShare{
+			encShares[indexInt-1] = &types.EncryptedKeyshare{
 				Data:      v.EncShare,
 				Validator: v.ValidatorAddress,
 			}
 		}
 
-		txMsg := types.MsgOverrideLatestPubKey{
+		txMsg := types.MsgOverrideLatestPubkey{
 			Creator:            masterClient.CosmosClient.GetAddress(),
 			PublicKey:          generatedResult.MasterPublicKey,
 			Commitments:        generatedResult.Commitments,
 			NumberOfValidators: uint64(n),
-			EncryptedKeyShares: encShares,
+			EncryptedKeyshares: encShares,
 		}
 
 		err = txMsg.ValidateBasic()
