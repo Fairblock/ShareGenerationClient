@@ -68,7 +68,7 @@ func (c *CosmosClient) GetAuthorizedAddrMap(keyIsValidator bool) (map[string]str
 	authorizedAddrMap := make(map[string]string)
 	allAuthorizedAddr, err := c.keyshareQueryClient.AuthorizedAddressAll(
 		context.Background(),
-		&keyshare.QueryAllAuthorizedAddressRequest{},
+		&keyshare.QueryAuthorizedAddressAllRequest{},
 	)
 	if err != nil {
 		return nil, err
@@ -89,16 +89,16 @@ func (c *CosmosClient) GetAuthorizedAddrMap(keyIsValidator bool) (map[string]str
 }
 
 func (c *CosmosClient) GetCurrentPubKeyValidatorsInfo() ([]ValidatorPubInfo, error) {
-	pubKeyResp, err := c.keyshareQueryClient.PubKey(context.Background(), &keyshare.QueryPubKeyRequest{})
+	pubKeyResp, err := c.keyshareQueryClient.Pubkey(context.Background(), &keyshare.QueryPubkeyRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	if pubKeyResp.ActivePubKey == nil {
+	if pubKeyResp.ActivePubkey == nil {
 		return []ValidatorPubInfo{}, nil
 	}
 
-	if len(pubKeyResp.ActivePubKey.EncryptedKeyShares) == 0 {
+	if len(pubKeyResp.ActivePubkey.EncryptedKeyshares) == 0 {
 		return []ValidatorPubInfo{}, nil
 	}
 
@@ -109,7 +109,7 @@ func (c *CosmosClient) GetCurrentPubKeyValidatorsInfo() ([]ValidatorPubInfo, err
 
 	validatorPubKeys := make([]ValidatorPubInfo, 0)
 
-	for _, eks := range pubKeyResp.ActivePubKey.EncryptedKeyShares {
+	for _, eks := range pubKeyResp.ActivePubkey.EncryptedKeyshares {
 		// .Validator here is validator / the authorized address
 		// If found, then it is an authorized address
 		// Not found, then it is validator
@@ -173,7 +173,7 @@ func (c *CosmosClient) GetCurrentPubKeyValidatorsInfo() ([]ValidatorPubInfo, err
 func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 	validatorsResp, err := c.keyshareQueryClient.ValidatorSetAll(
 		context.Background(),
-		&keyshare.QueryAllValidatorSetRequest{},
+		&keyshare.QueryValidatorSetAllRequest{},
 	)
 
 	if err != nil {
@@ -340,10 +340,10 @@ func (c *CosmosClient) UpdateClientAccountInfo() error {
 	return nil
 }
 
-func (c *CosmosClient) GetActivePubKey() (*types.QueryPubKeyResponse, error) {
-	resp, err := c.pepQueryClient.PubKey(
+func (c *CosmosClient) GetActivePubKey() (*types.QueryPubkeyResponse, error) {
+	resp, err := c.pepQueryClient.Pubkey(
 		context.Background(),
-		&types.QueryPubKeyRequest{},
+		&types.QueryPubkeyRequest{},
 	)
 	if err != nil {
 		return nil, err

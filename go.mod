@@ -6,9 +6,9 @@ require (
 	cosmossdk.io/api v0.7.5
 	cosmossdk.io/math v1.3.0
 	github.com/FairBlock/DistributedIBE v0.0.0-20231211202607-d457df6869db
-	github.com/Fairblock/fairyring v0.9.1
+	github.com/Fairblock/fairyring v0.10.2
 	github.com/cometbft/cometbft v0.38.12
-	github.com/cosmos/cosmos-sdk v0.50.6
+	github.com/cosmos/cosmos-sdk v0.50.8
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.4
 	github.com/drand/kyber v1.2.0
 	github.com/drand/kyber-bls12381 v0.3.1
@@ -169,7 +169,7 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace github.com/cosmos/cosmos-sdk => github.com/Fairblock/cosmos-sdk v0.50.8-fairyring
+replace github.com/cosmos/cosmos-sdk => github.com/Fairblock/cosmos-sdk v0.50.8-fairyring-2
 
 replace github.com/CosmWasm/wasmd => github.com/Fairblock/wasmd v0.50.6-fairyring
 

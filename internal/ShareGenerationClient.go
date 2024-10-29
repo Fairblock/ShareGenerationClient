@@ -7,11 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/Fairblock/fairyring/x/keyshare/types"
+	tmclient "github.com/cometbft/cometbft/rpc/client/http"
+	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	tmclient "github.com/cometbft/cometbft/rpc/client/http"
-	tmtypes "github.com/cometbft/cometbft/types"
 	"log"
 	"math"
 	"math/big"
@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 )
-
 
 var (
 	failedShareGenerated = promauto.NewCounter(prometheus.CounterOpts{
@@ -70,7 +69,7 @@ func ShareGenerationClient(cfg *config.Config) {
 	http.Handle("/metrics", promhttp.Handler())
 	log.Printf("MetricsPort: %d\n", cfg.MetricsPort)
 	go http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
-	
+
 	for {
 		select {
 		case result := <-out:
@@ -96,7 +95,7 @@ func ShareGenerationClient(cfg *config.Config) {
 				log.Fatal("Error while querying pub key:", err)
 			}
 
-			if res == nil || (len(res.QueuedPubKey.PublicKey) == 0 && len(res.QueuedPubKey.Creator) == 0) {
+			if res == nil || (len(res.QueuedPubkey.PublicKey) == 0 && len(res.QueuedPubkey.Creator) == 0) {
 				log.Println("Queued Pub Key Not found, sending setup request...")
 				validatorsPubInfos, err := masterClient.CosmosClient.GetAllValidatorsPubInfos()
 				if err != nil {
@@ -109,23 +108,23 @@ func ShareGenerationClient(cfg *config.Config) {
 
 				n := len(generatedResult.EncryptedKeyShares)
 
-				encShares := make([]*types.EncryptedKeyShare, n)
+				encShares := make([]*types.EncryptedKeyshare, n)
 
 				for _, v := range generatedResult.EncryptedKeyShares {
 					indexByte, _ := hex.DecodeString(v.Index.String())
 					indexInt := big.NewInt(0).SetBytes(indexByte).Uint64()
-					encShares[indexInt-1] = &types.EncryptedKeyShare{
+					encShares[indexInt-1] = &types.EncryptedKeyshare{
 						Data:      v.EncShare,
 						Validator: v.ValidatorAddress,
 					}
 				}
 
-				txMsg := types.MsgCreateLatestPubKey{
+				txMsg := types.MsgCreateLatestPubkey{
 					Creator:            masterClient.CosmosClient.GetAddress(),
 					PublicKey:          generatedResult.MasterPublicKey,
 					Commitments:        generatedResult.Commitments,
 					NumberOfValidators: uint64(n),
-					EncryptedKeyShares: encShares,
+					EncryptedKeyshares: encShares,
 				}
 
 				if err = txMsg.ValidateBasic(); err != nil {
@@ -144,7 +143,7 @@ func ShareGenerationClient(cfg *config.Config) {
 					log.Printf("Error broadcasting tx: %s", err.Error())
 					failedShareGenerated.Inc()
 					break
-				}else {
+				} else {
 					log.Printf("Tx Broadcasted: %s", txResp.TxHash)
 				}
 
@@ -162,8 +161,8 @@ func ShareGenerationClient(cfg *config.Config) {
 				validShareGenerated.Inc()
 			} else {
 				log.Println("Pub Keys Found !")
-				log.Printf("Active Pub Key: %s | Expries at: %d\n", res.ActivePubKey.PublicKey, res.ActivePubKey.Expiry)
-				log.Printf("Queued Pub Key: %s | Expries at: %d\n", res.QueuedPubKey.PublicKey, res.QueuedPubKey.Expiry)
+				log.Printf("Active Pub Key: %s | Expries at: %d\n", res.ActivePubkey.PublicKey, res.ActivePubkey.Expiry)
+				log.Printf("Queued Pub Key: %s | Expries at: %d\n", res.QueuedPubkey.PublicKey, res.QueuedPubkey.Expiry)
 			}
 		}
 	}
