@@ -2,17 +2,18 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/spf13/viper"
 )
 
 const (
 	DefaultFolderName    = ".ShareGenerationClient"
 	DefaultChainID       = "fairyring-testnet-1"
-	DefaultDenom         = "ufairy"
+	DefaultDenom         = "ufair"
 	DefaultCheckInterval = 50
 )
 
@@ -129,7 +130,6 @@ func DefaultConfig() Config {
 		},
 		CheckInterval: DefaultCheckInterval,
 		MetricsPort:   2223,
-
 	}
 }
 
