@@ -2,9 +2,13 @@ package cosmosClient
 
 import (
 	"context"
+	"encoding/hex"
+	"log"
+	"strings"
+	"time"
+
 	stakingv1beta1 "cosmossdk.io/api/cosmos/staking/v1beta1"
 	"cosmossdk.io/math"
-	"encoding/hex"
 	"github.com/Fairblock/fairyring/api/fairyring/keyshare"
 	"github.com/Fairblock/fairyring/x/pep/types"
 	clienttx "github.com/cosmos/cosmos-sdk/client/tx"
@@ -20,9 +24,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/skip-mev/block-sdk/v2/testutils"
 	"google.golang.org/grpc"
-	"log"
-	"strings"
-	"time"
 )
 
 const (
@@ -152,7 +153,8 @@ func (c *CosmosClient) GetCurrentPubKeyValidatorsInfo() ([]ValidatorPubInfo, err
 
 		validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
 		if err != nil {
-			return nil, errors.Wrap(err, "error getting validator description")
+			log.Printf("error getting validator description: %s\n", err)
+			continue
 		}
 		info := ValidatorPubInfo{
 			PublicKey:   pubKey,
