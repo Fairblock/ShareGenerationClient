@@ -34,11 +34,16 @@ var (
 
 func ShareGenerationClient(cfg *config.Config) {
 
-	privateKey := cfg.PrivateKey
-	gRPCEndpoint := cfg.GetGRPCEndpoint()
 	checkInterval := cfg.CheckInterval
 
-	cClient, err := cosmosClient.NewCosmosClient(gRPCEndpoint, privateKey, cfg.FairyRingNode.ChainID)
+	cClient, err := cosmosClient.NewCosmosClient(cosmosClient.ClientConfig{
+		GRPCEndpoint:  cfg.GetGRPCEndpoint(),
+		PrivateKeyHex: cfg.PrivateKey,
+		ChainID:       cfg.FairyRingNode.ChainID,
+		UseTLS:        cfg.FairyRingNode.GRPCTLS,
+		GasPrice:      cfg.FairyRingNode.GasPrice,
+		FeeDenom:      cfg.FairyRingNode.Denom,
+	})
 	if err != nil {
 		log.Fatalf("Couldn't create cosmos client: %s", err.Error())
 	}
@@ -51,12 +56,15 @@ func ShareGenerationClient(cfg *config.Config) {
 		cfg.GetFairyRingNodeURI(),
 		"/websocket",
 	)
+	if err != nil {
+		log.Fatalf("Couldn't create tendermint rpc client: %s", err.Error())
+	}
 
 	if err = client.Start(); err != nil {
 		log.Fatal(err)
 	}
 
-	out, err := client.Subscribe(context.Background(), "", "tm.event = 'NewBlockHeader'")
+	out, err := client.Subscribe(context.Background(), "share-generation-client", "tm.event = 'NewBlockHeader'", 256)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,12 +76,23 @@ func ShareGenerationClient(cfg *config.Config) {
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Printf("MetricsPort: %d\n", cfg.MetricsPort)
-	go http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil)
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.MetricsPort), nil); err != nil {
+			log.Printf("Metrics server stopped: %s", err.Error())
+		}
+	}()
 
 	for {
 		select {
-		case result := <-out:
-			newBlockHeader := result.Data.(tmtypes.EventDataNewBlockHeader)
+		case result, ok := <-out:
+			if !ok {
+				log.Fatal("Block subscription closed, exiting so the process can be restarted")
+			}
+
+			newBlockHeader, ok := result.Data.(tmtypes.EventDataNewBlockHeader)
+			if !ok {
+				continue
+			}
 
 			height := newBlockHeader.Header.Height
 
@@ -92,18 +111,21 @@ func ShareGenerationClient(cfg *config.Config) {
 
 			res, err := masterClient.CosmosClient.GetActivePubKey()
 			if err != nil && !strings.Contains(err.Error(), "Active Public Key does not exists") {
-				log.Fatal("Error while querying pub key:", err)
+				log.Printf("Error while querying pub key: %s", err.Error())
+				break
 			}
 
 			if res == nil || (len(res.QueuedPubkey.PublicKey) == 0 && len(res.QueuedPubkey.Creator) == 0) {
 				log.Println("Queued Pub Key Not found, sending setup request...")
 				validatorsPubInfos, err := masterClient.CosmosClient.GetAllValidatorsPubInfos()
 				if err != nil {
-					log.Fatalf("error getting all validators public infos: %s\n", err.Error())
+					log.Printf("Error getting all validators public infos: %s", err.Error())
+					break
 				}
 				generatedResult := masterClient.Generate(validatorsPubInfos)
 				if generatedResult == nil {
-					log.Fatal("Generate result is empty")
+					log.Println("Generate result is empty")
+					break
 				}
 
 				n := len(generatedResult.EncryptedKeyShares)
@@ -128,11 +150,13 @@ func ShareGenerationClient(cfg *config.Config) {
 				}
 
 				if err = txMsg.ValidateBasic(); err != nil {
-					log.Fatalf("Failed to submit latest pubkey, validate basic failed: %s", err.Error())
+					log.Printf("Failed to submit latest pubkey, validate basic failed: %s", err.Error())
+					break
 				}
 
 				if err = masterClient.CosmosClient.UpdateClientAccountInfo(); err != nil {
 					log.Printf("Unable to update client account info: %s", err.Error())
+					break
 				}
 
 				txResp, err := masterClient.CosmosClient.BroadcastTx(
@@ -147,7 +171,7 @@ func ShareGenerationClient(cfg *config.Config) {
 					log.Printf("Tx Broadcasted: %s", txResp.TxHash)
 				}
 
-				finalTxResp, err := masterClient.CosmosClient.WaitForTx(txResp.TxHash, time.Second)
+				finalTxResp, err := masterClient.CosmosClient.WaitForTx(txResp.TxHash, time.Second, 60*time.Second)
 				if err != nil {
 					log.Printf("Create latest pubkey tx failed: %s\n", err.Error())
 					break

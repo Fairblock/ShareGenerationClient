@@ -15,6 +15,7 @@ const (
 	DefaultChainID       = "fairyring-testnet-1"
 	DefaultDenom         = "ufair"
 	DefaultCheckInterval = 50
+	DefaultGasPrice      = 0.025
 )
 
 type Node struct {
@@ -22,7 +23,9 @@ type Node struct {
 	IP       string
 	Port     uint64
 	GRPCPort uint64
+	GRPCTLS  bool
 	Denom    string
+	GasPrice float64
 	ChainID  string
 }
 
@@ -70,7 +73,7 @@ func (c *Config) SaveConfig() error {
 	updateConfig(*c)
 
 	if err := viper.WriteConfig(); err != nil {
-		fmt.Errorf("failed to write config as : %s", err.Error())
+		return fmt.Errorf("failed to write config: %s", err.Error())
 	}
 
 	return nil
@@ -112,7 +115,7 @@ func (c *Config) ExportConfig() error {
 	setInitialConfig(*c)
 
 	if err = viper.WriteConfigAs(homeDir + "/" + DefaultFolderName + "/config.yml"); err != nil {
-		fmt.Errorf("failed to write config as : %s", err.Error())
+		return fmt.Errorf("failed to write config as: %s", err.Error())
 	}
 
 	return nil
@@ -125,7 +128,9 @@ func DefaultConfig() Config {
 			IP:       "127.0.0.1",
 			Port:     26657,
 			GRPCPort: 9090,
+			GRPCTLS:  false,
 			Denom:    DefaultDenom,
+			GasPrice: DefaultGasPrice,
 			ChainID:  DefaultChainID,
 		},
 		CheckInterval: DefaultCheckInterval,
@@ -138,7 +143,9 @@ func updateConfig(c Config) {
 	viper.Set("FairyRingNode.port", c.FairyRingNode.Port)
 	viper.Set("FairyRingNode.protocol", c.FairyRingNode.Protocol)
 	viper.Set("FairyRingNode.grpcPort", c.FairyRingNode.GRPCPort)
+	viper.Set("FairyRingNode.grpcTLS", c.FairyRingNode.GRPCTLS)
 	viper.Set("FairyRingNode.denom", c.FairyRingNode.Denom)
+	viper.Set("FairyRingNode.gasPrice", c.FairyRingNode.GasPrice)
 	viper.Set("FairyRingNode.chainID", c.FairyRingNode.ChainID)
 
 	viper.Set("PrivateKey", c.PrivateKey)
@@ -151,7 +158,9 @@ func setInitialConfig(c Config) {
 	viper.SetDefault("FairyRingNode.port", c.FairyRingNode.Port)
 	viper.SetDefault("FairyRingNode.protocol", c.FairyRingNode.Protocol)
 	viper.SetDefault("FairyRingNode.grpcPort", c.FairyRingNode.GRPCPort)
+	viper.SetDefault("FairyRingNode.grpcTLS", c.FairyRingNode.GRPCTLS)
 	viper.SetDefault("FairyRingNode.denom", c.FairyRingNode.Denom)
+	viper.SetDefault("FairyRingNode.gasPrice", c.FairyRingNode.GasPrice)
 	viper.SetDefault("FairyRingNode.chainID", c.FairyRingNode.ChainID)
 
 	viper.SetDefault("PrivateKey", c.PrivateKey)

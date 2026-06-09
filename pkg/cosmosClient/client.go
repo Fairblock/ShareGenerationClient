@@ -2,8 +2,10 @@ package cosmosClient
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/hex"
 	"log"
+	stdmath "math"
 	"strings"
 	"time"
 
@@ -24,12 +26,24 @@ import (
 	"github.com/pkg/errors"
 	"github.com/skip-mev/block-sdk/v2/testutils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
 	defaultGasAdjustment = 1.5
 	defaultGasLimit      = 300000
+	maxSequenceRetries   = 2
 )
+
+type ClientConfig struct {
+	GRPCEndpoint  string
+	PrivateKeyHex string
+	ChainID       string
+	UseTLS        bool
+	GasPrice      float64
+	FeeDenom      string
+}
 
 type CosmosClient struct {
 	authClient          authtypes.QueryClient
@@ -44,6 +58,8 @@ type CosmosClient struct {
 	account             authtypes.BaseAccount
 	accAddress          cosmostypes.AccAddress
 	chainID             string
+	gasPrice            float64
+	feeDenom            string
 }
 
 type ValidatorPubInfo struct {
@@ -251,14 +267,17 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 	return validatorPubKeys, nil
 }
 
-func NewCosmosClient(
-	endpoint string,
-	privateKeyHex string,
-	chainID string,
-) (*CosmosClient, error) {
-	grpcConn, err := grpc.Dial(
-		endpoint,
-		grpc.WithInsecure(),
+func NewCosmosClient(cfg ClientConfig) (*CosmosClient, error) {
+	var transportCreds credentials.TransportCredentials
+	if cfg.UseTLS {
+		transportCreds = credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+	} else {
+		transportCreds = insecure.NewCredentials()
+	}
+
+	grpcConn, err := grpc.NewClient(
+		cfg.GRPCEndpoint,
+		grpc.WithTransportCredentials(transportCreds),
 	)
 	if err != nil {
 		return nil, err
@@ -270,7 +289,7 @@ func NewCosmosClient(
 	keyshareClient := keyshare.NewQueryClient(grpcConn)
 	stakingQueryClient := stakingv1beta1.NewQueryClient(grpcConn)
 
-	keyBytes, err := hex.DecodeString(privateKeyHex)
+	keyBytes, err := hex.DecodeString(cfg.PrivateKeyHex)
 	if err != nil {
 		return nil, err
 	}
@@ -279,10 +298,10 @@ func NewCosmosClient(
 	pubKey := privateKey.PubKey()
 	address := pubKey.Address()
 
-	cfg := cosmostypes.GetConfig()
-	cfg.SetBech32PrefixForAccount("fairy", "fairypub")
-	cfg.SetBech32PrefixForValidator("fairyvaloper", "fairyvaloperpub")
-	cfg.SetBech32PrefixForConsensusNode("fairyvalcons", "fairyrvalconspub")
+	bech32Cfg := cosmostypes.GetConfig()
+	bech32Cfg.SetBech32PrefixForAccount("fairy", "fairypub")
+	bech32Cfg.SetBech32PrefixForValidator("fairyvaloper", "fairyvaloperpub")
+	bech32Cfg.SetBech32PrefixForConsensusNode("fairyvalcons", "fairyrvalconspub")
 
 	accAddr := cosmostypes.AccAddress(address)
 	addr := accAddr.String()
@@ -316,7 +335,9 @@ func NewCosmosClient(
 		account:             baseAccount,
 		accAddress:          accAddr,
 		publicKey:           pubKey,
-		chainID:             chainID,
+		chainID:             cfg.ChainID,
+		gasPrice:            cfg.GasPrice,
+		feeDenom:            cfg.FeeDenom,
 	}, nil
 }
 
@@ -422,33 +443,78 @@ func (c *CosmosClient) handleBroadcastResult(resp *cosmostypes.TxResponse, err e
 	return nil
 }
 
-func (c *CosmosClient) BroadcastTx(msg cosmostypes.Msg, adjustGas bool) (*cosmostypes.TxResponse, error) {
-	txBytes, err := c.signTxMsg(msg, adjustGas)
+func isSequenceMismatch(resp *cosmostypes.TxResponse, err error) bool {
+	var msg string
 	if err != nil {
-		return nil, err
+		msg = err.Error()
+	} else if resp != nil {
+		msg = resp.RawLog
 	}
-
-	c.account.Sequence++
-
-	resp, err := c.txClient.BroadcastTx(
-		context.Background(),
-		&tx.BroadcastTxRequest{
-			TxBytes: txBytes,
-			Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.TxResponse, c.handleBroadcastResult(resp.TxResponse, err)
+	msg = strings.ToLower(msg)
+	return strings.Contains(msg, "account sequence mismatch") ||
+		strings.Contains(msg, "incorrect account sequence")
 }
 
-func (c *CosmosClient) WaitForTx(hash string, rate time.Duration) (*tx.GetTxResponse, error) {
+func (c *CosmosClient) BroadcastTx(msg cosmostypes.Msg, adjustGas bool) (*cosmostypes.TxResponse, error) {
+	var lastResp *cosmostypes.TxResponse
+	var lastErr error
+
+	for attempt := 0; attempt <= maxSequenceRetries; attempt++ {
+		if attempt > 0 {
+			if err := c.UpdateClientAccountInfo(); err != nil {
+				return nil, err
+			}
+		}
+
+		txBytes, err := c.signTxMsg(msg, adjustGas)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := c.txClient.BroadcastTx(
+			context.Background(),
+			&tx.BroadcastTxRequest{
+				TxBytes: txBytes,
+				Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
+			},
+		)
+		if err != nil {
+			if isSequenceMismatch(nil, err) && attempt < maxSequenceRetries {
+				lastErr = err
+				continue
+			}
+			return nil, err
+		}
+
+		lastResp = resp.TxResponse
+		if resp.TxResponse.Code == 0 {
+			c.account.Sequence++
+			return resp.TxResponse, c.handleBroadcastResult(resp.TxResponse, nil)
+		}
+
+		if isSequenceMismatch(resp.TxResponse, nil) && attempt < maxSequenceRetries {
+			lastErr = c.handleBroadcastResult(resp.TxResponse, nil)
+			continue
+		}
+
+		return resp.TxResponse, c.handleBroadcastResult(resp.TxResponse, nil)
+	}
+
+	if lastResp != nil {
+		return lastResp, c.handleBroadcastResult(lastResp, nil)
+	}
+	return nil, lastErr
+}
+
+func (c *CosmosClient) WaitForTx(hash string, rate, timeout time.Duration) (*tx.GetTxResponse, error) {
+	deadline := time.Now().Add(timeout)
 	for {
 		resp, err := c.txClient.GetTx(context.Background(), &tx.GetTxRequest{Hash: hash})
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
+				if time.Now().After(deadline) {
+					return nil, errors.Errorf("timed out waiting for tx %s to be included in a block", hash)
+				}
 				time.Sleep(rate)
 				continue
 			}
@@ -485,6 +551,13 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 	}
 
 	txBuilder.SetGasLimit(newGasLimit)
+
+	if c.gasPrice > 0 {
+		feeAmount := int64(stdmath.Ceil(float64(newGasLimit) * c.gasPrice))
+		txBuilder.SetFeeAmount(cosmostypes.NewCoins(
+			cosmostypes.NewCoin(c.feeDenom, math.NewInt(feeAmount)),
+		))
+	}
 
 	signerData := authsigning.SignerData{
 		ChainID:       c.chainID,

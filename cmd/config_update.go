@@ -23,7 +23,9 @@ var configUpdateCmd = &cobra.Command{
 		chainIP, _ := cmd.Flags().GetString("ip")
 		chainProtocol, _ := cmd.Flags().GetString("protocol")
 		chainGrpcPort, _ := cmd.Flags().GetUint64("grpc-port")
+		chainGrpcTLS, _ := cmd.Flags().GetBool("grpc-tls")
 		chainPort, _ := cmd.Flags().GetUint64("port")
+		gasPrice, _ := cmd.Flags().GetFloat64("gas-price")
 		checkInterval, _ := cmd.Flags().GetUint64("check-interval")
 		privateKey, _ := cmd.Flags().GetString("private-key")
 		metricsPort, _ := cmd.Flags().GetUint64("metrics-port")
@@ -33,7 +35,9 @@ var configUpdateCmd = &cobra.Command{
 			IP:       chainIP,
 			Port:     chainPort,
 			GRPCPort: chainGrpcPort,
+			GRPCTLS:  chainGrpcTLS,
 			Denom:    chainDenom,
+			GasPrice: gasPrice,
 			ChainID:  chainID,
 		}
 
@@ -60,9 +64,11 @@ func init() {
 	configUpdateCmd.Flags().String("chain-id", cfg.FairyRingNode.ChainID, "Update config chain id")
 	configUpdateCmd.Flags().String("denom", cfg.FairyRingNode.Denom, "Update config denom")
 	configUpdateCmd.Flags().Uint64("grpc-port", cfg.FairyRingNode.GRPCPort, "Update config grpc-port")
+	configUpdateCmd.Flags().Bool("grpc-tls", cfg.FairyRingNode.GRPCTLS, "Use TLS when connecting to the grpc endpoint")
 	configUpdateCmd.Flags().String("ip", cfg.FairyRingNode.IP, "Update config node ip address")
 	configUpdateCmd.Flags().Uint64("port", cfg.FairyRingNode.Port, "Update config node port")
 	configUpdateCmd.Flags().String("protocol", cfg.FairyRingNode.Protocol, "Update config node protocol")
+	configUpdateCmd.Flags().Float64("gas-price", cfg.FairyRingNode.GasPrice, "Gas price paid per unit of gas, in the chain denom")
 	configUpdateCmd.Flags().Uint64("check-interval", cfg.CheckInterval, "How often the client check for pub key status in blocks")
 	configUpdateCmd.Flags().String("private-key", cfg.PrivateKey, "Private key for the trusted address")
 	configUpdateCmd.Flags().Uint64("metrics-port", cfg.MetricsPort, "Update config metrics port")
