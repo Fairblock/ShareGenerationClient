@@ -222,19 +222,17 @@ func (c *CosmosClient) GetAllValidatorsPubInfos() ([]ValidatorPubInfo, error) {
 			continue
 		}
 
-		var secp256k1PubKey secp256k1.PrivKey
-		_ = secp256k1PubKey
-		var accountPubKey secp256k1.PubKey
-		if err = accountPubKey.Unmarshal(baseAccount.PubKey.Value); err != nil {
+		var secp256k1PubKey secp256k1.PubKey
+		if err = secp256k1PubKey.Unmarshal(baseAccount.PubKey.Value); err != nil {
 			return nil, errors.Wrap(err, "error when unmarshalling pub key")
 		}
-		pubKey, err := dcrdSecp256k1.ParsePubKey(accountPubKey.Key)
+		pubKey, err := dcrdSecp256k1.ParsePubKey(secp256k1PubKey.Key)
 		if err != nil {
 			return nil, errors.Wrap(err, "error parsing pub key to dcrd pub key")
 		}
 
 		if !found {
-			validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(accountPubKey.Address()).String())
+			validatorDescription, err := c.GetValidatorDescription(cosmostypes.ValAddress(secp256k1PubKey.Address()).String())
 			if err != nil {
 				return nil, errors.Wrap(err, "error getting validator description")
 			}
