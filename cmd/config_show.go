@@ -24,9 +24,10 @@ var configShowCmd = &cobra.Command{
 FairyRing Node Endpoint: %s
 Chain ID: %s
 Chain Denom: %s
+Gas Price: %s
 CheckInterval: %d
 MetricsPort: %d
-`, cfg.GetGRPCEndpoint(), cfg.GetFairyRingNodeURI(), cfg.FairyRingNode.ChainID, cfg.FairyRingNode.Denom, cfg.CheckInterval,cfg.MetricsPort)
+`, cfg.GetGRPCEndpoint(), cfg.GetFairyRingNodeURI(), cfg.FairyRingNode.ChainID, cfg.FairyRingNode.Denom, cfg.FairyRingNode.GasPrice, cfg.CheckInterval, cfg.MetricsPort)
 
 		if showPKey {
 			fmt.Printf("Private Key: %s\n", cfg.PrivateKey)
