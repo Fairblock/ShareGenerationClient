@@ -20,6 +20,7 @@ var configUpdateCmd = &cobra.Command{
 
 		chainID, _ := cmd.Flags().GetString("chain-id")
 		chainDenom, _ := cmd.Flags().GetString("denom")
+		chainGasPrice, _ := cmd.Flags().GetString("gas-price")
 		chainIP, _ := cmd.Flags().GetString("ip")
 		chainProtocol, _ := cmd.Flags().GetString("protocol")
 		chainGrpcPort, _ := cmd.Flags().GetUint64("grpc-port")
@@ -35,6 +36,7 @@ var configUpdateCmd = &cobra.Command{
 			GRPCPort: chainGrpcPort,
 			Denom:    chainDenom,
 			ChainID:  chainID,
+			GasPrice: chainGasPrice,
 		}
 
 		cfg.CheckInterval = checkInterval
@@ -59,6 +61,7 @@ func init() {
 
 	configUpdateCmd.Flags().String("chain-id", cfg.FairyRingNode.ChainID, "Update config chain id")
 	configUpdateCmd.Flags().String("denom", cfg.FairyRingNode.Denom, "Update config denom")
+	configUpdateCmd.Flags().String("gas-price", cfg.FairyRingNode.GasPrice, "Update config gas price in denom units per gas")
 	configUpdateCmd.Flags().Uint64("grpc-port", cfg.FairyRingNode.GRPCPort, "Update config grpc-port")
 	configUpdateCmd.Flags().String("ip", cfg.FairyRingNode.IP, "Update config node ip address")
 	configUpdateCmd.Flags().Uint64("port", cfg.FairyRingNode.Port, "Update config node port")
