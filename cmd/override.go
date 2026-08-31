@@ -30,7 +30,13 @@ var overrideCmd = &cobra.Command{
 		privateKey := cfg.PrivateKey
 		gRPCEndpoint := cfg.GetGRPCEndpoint()
 
-		cClient, err := cosmosClient.NewCosmosClient(gRPCEndpoint, privateKey, cfg.FairyRingNode.ChainID)
+		cClient, err := cosmosClient.NewCosmosClient(
+			gRPCEndpoint,
+			privateKey,
+			cfg.FairyRingNode.ChainID,
+			cfg.FairyRingNode.Denom,
+			cfg.GasPrice,
+		)
 		if err != nil {
 			log.Fatalf("Couldn't create cosmos client: %s", err.Error())
 		}
