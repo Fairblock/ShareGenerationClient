@@ -38,7 +38,13 @@ func ShareGenerationClient(cfg *config.Config) {
 	gRPCEndpoint := cfg.GetGRPCEndpoint()
 	checkInterval := cfg.CheckInterval
 
-	cClient, err := cosmosClient.NewCosmosClient(gRPCEndpoint, privateKey, cfg.FairyRingNode.ChainID)
+	cClient, err := cosmosClient.NewCosmosClient(
+		gRPCEndpoint,
+		privateKey,
+		cfg.FairyRingNode.ChainID,
+		cfg.FairyRingNode.Denom,
+		cfg.FairyRingNode.GasPrice,
+	)
 	if err != nil {
 		log.Fatalf("Couldn't create cosmos client: %s", err.Error())
 	}
