@@ -14,6 +14,7 @@ const (
 	DefaultFolderName    = ".ShareGenerationClient"
 	DefaultChainID       = "fairyring-testnet-1"
 	DefaultDenom         = "ufair"
+	DefaultGasPrice      = "0.025"
 	DefaultCheckInterval = 50
 )
 
@@ -24,6 +25,7 @@ type Node struct {
 	GRPCPort uint64
 	Denom    string
 	ChainID  string
+	GasPrice string
 }
 
 type Config struct {
@@ -127,6 +129,7 @@ func DefaultConfig() Config {
 			GRPCPort: 9090,
 			Denom:    DefaultDenom,
 			ChainID:  DefaultChainID,
+			GasPrice: DefaultGasPrice,
 		},
 		CheckInterval: DefaultCheckInterval,
 		MetricsPort:   2223,
@@ -140,6 +143,7 @@ func updateConfig(c Config) {
 	viper.Set("FairyRingNode.grpcPort", c.FairyRingNode.GRPCPort)
 	viper.Set("FairyRingNode.denom", c.FairyRingNode.Denom)
 	viper.Set("FairyRingNode.chainID", c.FairyRingNode.ChainID)
+	viper.Set("FairyRingNode.gasPrice", c.FairyRingNode.GasPrice)
 
 	viper.Set("PrivateKey", c.PrivateKey)
 	viper.Set("CheckInterval", c.CheckInterval)
@@ -153,6 +157,7 @@ func setInitialConfig(c Config) {
 	viper.SetDefault("FairyRingNode.grpcPort", c.FairyRingNode.GRPCPort)
 	viper.SetDefault("FairyRingNode.denom", c.FairyRingNode.Denom)
 	viper.SetDefault("FairyRingNode.chainID", c.FairyRingNode.ChainID)
+	viper.SetDefault("FairyRingNode.gasPrice", c.FairyRingNode.GasPrice)
 
 	viper.SetDefault("PrivateKey", c.PrivateKey)
 	viper.SetDefault("CheckInterval", c.CheckInterval)

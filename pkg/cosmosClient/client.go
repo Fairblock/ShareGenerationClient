@@ -44,6 +44,8 @@ type CosmosClient struct {
 	account             authtypes.BaseAccount
 	accAddress          cosmostypes.AccAddress
 	chainID             string
+	feeDenom            string
+	gasPrice            math.LegacyDec
 }
 
 type ValidatorPubInfo struct {
@@ -255,6 +257,8 @@ func NewCosmosClient(
 	endpoint string,
 	privateKeyHex string,
 	chainID string,
+	feeDenom string,
+	gasPriceString string,
 ) (*CosmosClient, error) {
 	grpcConn, err := grpc.Dial(
 		endpoint,
@@ -262,6 +266,17 @@ func NewCosmosClient(
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if feeDenom == "" {
+		return nil, errors.New("fee denom must not be empty")
+	}
+	gasPrice, err := math.LegacyNewDecFromStr(gasPriceString)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid gas price")
+	}
+	if !gasPrice.IsPositive() {
+		return nil, errors.New("gas price must be positive")
 	}
 
 	authClient := authtypes.NewQueryClient(grpcConn)
@@ -273,6 +288,9 @@ func NewCosmosClient(
 	keyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
 		return nil, err
+	}
+	if len(keyBytes) != 32 {
+		return nil, errors.New("private key must decode to exactly 32 bytes")
 	}
 
 	privateKey := secp256k1.PrivKey{Key: keyBytes}
@@ -317,6 +335,8 @@ func NewCosmosClient(
 		accAddress:          accAddr,
 		publicKey:           pubKey,
 		chainID:             chainID,
+		feeDenom:            feeDenom,
+		gasPrice:            gasPrice,
 	}, nil
 }
 
@@ -485,6 +505,11 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 	}
 
 	txBuilder.SetGasLimit(newGasLimit)
+	feeAmount := c.gasPrice.MulInt(math.NewIntFromUint64(newGasLimit)).Ceil().TruncateInt()
+	if !feeAmount.IsPositive() {
+		return nil, errors.New("calculated transaction fee must be positive")
+	}
+	txBuilder.SetFeeAmount(cosmostypes.NewCoins(cosmostypes.NewCoin(c.feeDenom, feeAmount)))
 
 	signerData := authsigning.SignerData{
 		ChainID:       c.chainID,
@@ -512,6 +537,9 @@ func (c *CosmosClient) signTxMsg(msg cosmostypes.Msg, adjustGas bool) ([]byte, e
 		context.Background(), 1, signerData, txBuilder, &c.privateKey,
 		encodingCfg.TxConfig, c.account.Sequence,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	err = txBuilder.SetSignatures(sigV2)
 	if err != nil {
