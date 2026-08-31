@@ -35,7 +35,7 @@ var overrideCmd = &cobra.Command{
 			privateKey,
 			cfg.FairyRingNode.ChainID,
 			cfg.FairyRingNode.Denom,
-			cfg.GasPrice,
+			cfg.FairyRingNode.GasPrice,
 		)
 		if err != nil {
 			log.Fatalf("Couldn't create cosmos client: %s", err.Error())
